@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Multi‑Agent News & Trend Analyzer</title>
+  <style>
+    :root {
+      --bg: #0f172a; /* slate-900 */
+      --panel: #111827; /* gray-900 */
+      --muted: #94a3b8; /* slate-400 */
+      --text: #e5e7eb; /* gray-200 */
+      --accent: #22c55e; /* green-500 */
+      --accent-2: #3b82f6; /* blue-500 */
+      --danger: #ef4444; /* red-500 */
+    }
+    body { margin:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
+    .container { max-width: 900px; margin: 0 auto; padding: 16px; }
+    header { padding: 12px 0 8px; display:flex; gap:12px; align-items:center; }
+    header h1 { font-size: 1.2rem; margin:0; font-weight:600; }
+    header .subtitle { color: var(--muted); font-size: 0.9rem; }
+
+    .warning { background: #332b00; border: 1px solid #f59e0b; color:#fde68a; padding:10px 12px; border-radius: 8px; margin: 10px 0 16px; }
+
+    .chat { background: var(--panel); border-radius: 12px; padding: 12px; min-height: 60vh; display:flex; flex-direction:column; gap: 12px; }
+
+    .msg { display:flex; gap:10px; align-items:flex-start; }
+    .msg .bubble { background:#0b1220; border:1px solid #1f2937; padding:10px 12px; border-radius: 10px; white-space: pre-wrap; line-height: 1.45; }
+    .msg.user .bubble { background:#0b1a0b; border-color:#0f3d19; }
+    .msg.assistant .bubble { background:#0b1220; }
+    .role { font-size: 0.75rem; color: var(--muted); width: 80px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .actions { display:flex; gap:8px; margin-top: 6px; }
+    .button { background:#0b1220; color:var(--text); border: 1px solid #1f2937; border-radius:8px; padding:6px 10px; font-size:0.85rem; cursor:pointer; }
+    .button:hover { border-color:#334155; }
+
+    form#ask-form { display:flex; gap:10px; margin-top: 8px; }
+    #query { flex:1; background:#0b1220; color:var(--text); border:1px solid #1f2937; border-radius:8px; padding:10px 12px; }
+    #send { background: var(--accent-2); border:none; color:white; padding:10px 14px; border-radius:8px; cursor:pointer; }
+    #send:disabled { filter: grayscale(1); opacity: 0.6; cursor: not-allowed; }
+
+    .footer-note { color: var(--muted); font-size: 0.8rem; margin-top:10px; text-align:center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L20 7V17L12 22L4 17V7L12 2Z" stroke="#3b82f6" stroke-width="1.5"/>
+        <path d="M12 8V16M8 10V14M16 10V14" stroke="#22c55e" stroke-width="1.5"/>
+      </svg>
+      <div>
+        <h1>Multi‑Agent News & Trend Analyzer</h1>
+        <div class="subtitle">Chatbot for web research: search → summarize → trends → report</div>
+      </div>
+    </header>
+
+    {% if warning %}
+    <div class="warning">
+      {{ warning }}
+    </div>
+    {% endif %}
+
+    <div id="chat" class="chat">
+      <div class="msg assistant">
+        <div class="role">Assistant</div>
+        <div class="bubble">Hi! Ask me to research any topic. I will search the web, summarize key points, analyze trends, and provide a final report.</div>
+      </div>
+    </div>
+
+    <form id="ask-form" autocomplete="off">
+      <input id="query" name="query" type="text" placeholder="Type your query… e.g., AI investment trends 2025" required />
+      <button id="send" type="submit">Send</button>
+    </form>
+
+    <div class="footer-note">Tip: Results are generated via live web search + analysis. You can copy any response.</div>
+  </div>
+
+  <script>
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('ask-form');
+    const input = document.getElementById('query');
+    const sendBtn = document.getElementById('send');
+
+    function addMessage(role, text, withCopy=false) {
+      const wrap = document.createElement('div');
+      wrap.className = `msg ${role}`;
+      const roleEl = document.createElement('div');
+      roleEl.className = 'role';
+      roleEl.textContent = role === 'user' ? 'You' : 'Assistant';
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.textContent = text;
+      wrap.appendChild(roleEl);
+      wrap.appendChild(bubble);
+
+      if (withCopy) {
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const btn = document.createElement('button');
+        btn.className = 'button';
+        btn.type = 'button';
+        btn.textContent = 'Copy';
+        btn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(text);
+            btn.textContent = 'Copied!';
+            setTimeout(() => (btn.textContent = 'Copy'), 1200);
+          } catch (e) {
+            btn.textContent = 'Press Ctrl/Cmd+C';
+            setTimeout(() => (btn.textContent = 'Copy'), 2000);
+          }
+        });
+        actions.appendChild(btn);
+        wrap.appendChild(actions);
+      }
+
+      chat.appendChild(wrap);
+      chat.scrollTop = chat.scrollHeight;
+      return wrap;
+    }
+
+    async function askServer(query) {
+      const resp = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        throw new Error(data.error || 'Request failed');
+      }
+      return data.report;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = input.value.trim();
+      if (!q) return;
+
+      addMessage('user', q);
+      input.value = '';
+      input.focus();
+      sendBtn.disabled = true;
+
+      const thinking = addMessage('assistant', 'Thinking…');
+
+      try {
+        const report = await askServer(q);
+        // Replace the thinking bubble text
+        const bubble = thinking.querySelector('.bubble');
+        bubble.textContent = report;
+        // Add copy action to this assistant message
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const btn = document.createElement('button');
+        btn.className = 'button';
+        btn.type = 'button';
+        btn.textContent = 'Copy';
+        btn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(report);
+            btn.textContent = 'Copied!';
+            setTimeout(() => (btn.textContent = 'Copy'), 1200);
+          } catch (e) {
+            btn.textContent = 'Press Ctrl/Cmd+C';
+            setTimeout(() => (btn.textContent = 'Copy'), 2000);
+          }
+        });
+        actions.appendChild(btn);
+        thinking.appendChild(actions);
+      } catch (err) {
+        const bubble = thinking.querySelector('.bubble');
+        bubble.textContent = `Error: ${err.message}`;
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+
+    // Allow Enter to submit, Shift+Enter for newline (if later using textarea)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        // default is submit already
+      }
+    });
+  </script>
+</body>
+</html>
