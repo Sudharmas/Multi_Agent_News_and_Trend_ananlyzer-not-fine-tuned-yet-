@@ -44,7 +44,7 @@ def ask():
         return jsonify({"ok": False, "error": msg}), 500
 
     try:
-        initial_state = {"messages": [HumanMessage(content=query.strip())], "next_node": "search"}
+        initial_state = {"messages": [HumanMessage(content=query.strip())], "next_node": "parallel_retrieve"}
         final_state = news_app.invoke(initial_state)
         report = final_state.get("report", "No report generated.")
         return jsonify({"ok": True, "report": report})

@@ -40,7 +40,7 @@ def main():
         # Define the initial state of the graph for this query
         initial_state = {
             "messages": [HumanMessage(content=user_query)],
-            "next_node": "search",
+            "next_node": "parallel_retrieve",
         }
 
         print("\n------------------------------------------")

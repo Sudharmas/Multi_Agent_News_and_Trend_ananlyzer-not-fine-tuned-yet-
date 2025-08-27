@@ -1,6 +1,7 @@
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
+from agents.memory_ingestion_agent import memory_ingestion_agent
 
 load_dotenv()
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
@@ -37,6 +38,12 @@ def report_agent(state):
 
     state['report'] = report
     state['next_node'] = "end"
+
+    # After report is generated, ingest into memory (best-effort, non-blocking of state return)
+    try:
+        memory_ingestion_agent(topic=query, report_text=report)
+    except Exception as e:
+        print(f"⚠️ Memory ingestion skipped due to error: {e}")
 
     print("✅ Final report generated.")
     return state

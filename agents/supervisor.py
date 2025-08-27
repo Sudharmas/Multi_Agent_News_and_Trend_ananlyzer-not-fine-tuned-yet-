@@ -14,7 +14,7 @@ def supervisor_agent(state):
     """
     # If a previous agent has explicitly set the next node, honor it.
     explicit_next = state.get("next_node")
-    valid_nodes = ["search", "summarize", "analyze_trends", "report", "end"]
+    valid_nodes = ["parallel_retrieve", "search", "summarize", "analyze_trends", "report", "end"]
     if explicit_next in valid_nodes:
         return {"next_node": explicit_next}
 
@@ -33,7 +33,8 @@ def supervisor_agent(state):
         Based on the messages, what should be the next step?
 
         Choose one of the following actions:
-        - `search`: The query requires a web search to find relevant information.
+        - `parallel_retrieve`: Run memory retrieval and web search in parallel and use the first result.
+        - `search`: Perform only a web search (fallback or special case).
         - `summarize`: The search results have been gathered and need to be summarized.
         - `analyze_trends`: The summaries are ready and need to be analyzed for trends.
         - `report`: All analysis is complete, and the final report needs to be generated.
@@ -51,7 +52,7 @@ def supervisor_agent(state):
 
     # Simple validation to ensure the response is one of the valid options
     if next_node not in valid_nodes:
-        print(f"Warning: Supervisor returned an invalid node: {next_node}. Defaulting to 'search'.")
-        next_node = "search"
+        print(f"Warning: Supervisor returned an invalid node: {next_node}. Defaulting to 'parallel_retrieve'.")
+        next_node = "parallel_retrieve"
 
     return {"next_node": next_node}
